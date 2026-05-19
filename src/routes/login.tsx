@@ -29,6 +29,56 @@ function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // If already authenticated, skip to dashboard
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate({ to: "/dashboard", replace: true });
+    });
+  }, [navigate]);
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    const parsed = loginSchema.safeParse({ email, password });
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Dados inválidos");
+      return;
+    }
+
+    setSubmitting(true);
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email: parsed.data.email,
+      password: parsed.data.password,
+    });
+    setSubmitting(false);
+
+    if (err) {
+      const msg =
+        err.message === "Invalid login credentials"
+          ? "E-mail ou senha incorretos."
+          : err.message;
+      setError(msg);
+      return;
+    }
+    navigate({ to: "/dashboard" });
+  }
+
+  async function handleGoogle() {
+    setError(null);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin + "/dashboard",
+    });
+    if (result.error) {
+      setError("Falha ao conectar com Google. Tente novamente.");
+      return;
+    }
+    if (result.redirected) return;
+    navigate({ to: "/dashboard" });
+  }
 
   return (
     <div className="min-h-screen w-full p-3 md:p-6 lg:p-8">
