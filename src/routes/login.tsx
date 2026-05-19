@@ -1,9 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { ArrowRight, Box, Lock } from "lucide-react";
+import { ArrowRight, Lock, AlertCircle } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { z } from "zod";
 import heroImage from "@/assets/login-hero.jpg";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -15,6 +18,11 @@ export const Route = createFileRoute("/login")({
     ],
   }),
   component: Login,
+});
+
+const loginSchema = z.object({
+  email: z.string().trim().email("E-mail inválido").max(255),
+  password: z.string().min(1, "Informe a senha").max(72),
 });
 
 function Login() {
