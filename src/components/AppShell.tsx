@@ -5,6 +5,7 @@ import {
 import { Logo } from "./Logo";
 import { AuthGate } from "./AuthGate";
 import { useAuth, signOut } from "@/hooks/use-auth";
+import { USER_TIER_BADGE } from "@/types/profile.types";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -23,20 +24,28 @@ export function AppShell({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
-  const email = user?.email ?? "";
+  const email = profile?.email ?? user?.email ?? "";
   const displayName =
+    profile?.full_name ||
     (user?.user_metadata?.full_name as string | undefined) ||
     (user?.user_metadata?.name as string | undefined) ||
     email.split("@")[0] ||
     "Usuário";
+  const avatarUrl =
+    profile?.avatar_url ||
+    (user?.user_metadata?.avatar_url as string | undefined) ||
+    (user?.user_metadata?.picture as string | undefined) ||
+    null;
   const initials = displayName
     .split(/[\s.]+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("") || "U";
+  const tier = profile?.tier ?? "STANDARD";
+  const tierBadge = USER_TIER_BADGE[tier];
 
   async function handleSignOut() {
     await signOut();
@@ -79,10 +88,14 @@ export function AppShell({
         </Link>
 
         <div className="mt-6 flex items-center gap-3 p-3 rounded-xl glass">
-          <div className="h-9 w-9 rounded-full grid place-items-center font-semibold text-sm shrink-0" style={{ background: "var(--gradient-brand)" }}>{initials}</div>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={displayName} className="h-9 w-9 rounded-full object-cover shrink-0 ring-1 ring-border" />
+          ) : (
+            <div className="h-9 w-9 rounded-full grid place-items-center font-semibold text-sm shrink-0" style={{ background: "var(--gradient-brand)" }}>{initials}</div>
+          )}
           <div className="text-xs min-w-0 flex-1">
             <div className="font-semibold text-foreground truncate">{displayName}</div>
-            <div className="text-muted-foreground font-mono uppercase tracking-wider text-[10px] truncate">{email || "Admin Global"}</div>
+            <div className="text-muted-foreground font-mono uppercase tracking-wider text-[10px] truncate">{email || "—"}</div>
           </div>
           <button
             onClick={handleSignOut}
@@ -114,6 +127,16 @@ export function AppShell({
             <div className="text-xs text-muted-foreground font-mono hidden md:flex items-center gap-1.5">
               <span className="pulse-dot before:inline-block before:mr-1.5"></span>
               UTC-3 São Paulo
+            </div>
+            <div className="hidden md:flex items-center gap-2 pl-3 ml-1 border-l border-border">
+              <span className={`chip ${tierBadge.className}`} title={`Tier ${tierBadge.label}`}>
+                {tierBadge.label}
+              </span>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName} className="h-8 w-8 rounded-full object-cover ring-1 ring-border" />
+              ) : (
+                <div className="h-8 w-8 rounded-full grid place-items-center font-semibold text-xs" style={{ background: "var(--gradient-brand)" }}>{initials}</div>
+              )}
             </div>
           </div>
         </header>
