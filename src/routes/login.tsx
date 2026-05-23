@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import heroImage from "@/assets/login-hero.jpg";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -68,17 +68,20 @@ function Login() {
   }
 
   async function handleGoogle() {
-    setError(null);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/dashboard",
-    });
-    if (result.error) {
-      setError("Falha ao conectar com Google. Tente novamente.");
-      return;
-    }
-    if (result.redirected) return;
-    navigate({ to: "/dashboard" });
+  setError(null);
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin + "/dashboard",
+    },
+  });
+
+  if (error) {
+    setError("Falha ao conectar com Google. Tente novamente.");
+    console.error(error);
   }
+  } 
 
   return (
     <div className="min-h-screen w-full p-3 md:p-6 lg:p-8">
