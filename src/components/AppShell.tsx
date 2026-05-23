@@ -5,6 +5,7 @@ import {
 import { Logo } from "./Logo";
 import { AuthGate } from "./AuthGate";
 import { useAuth, signOut } from "@/hooks/use-auth";
+import { USER_TIER_BADGE } from "@/types/profile.types";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -23,20 +24,28 @@ export function AppShell({
 }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
-  const email = user?.email ?? "";
+  const email = profile?.email ?? user?.email ?? "";
   const displayName =
+    profile?.full_name ||
     (user?.user_metadata?.full_name as string | undefined) ||
     (user?.user_metadata?.name as string | undefined) ||
     email.split("@")[0] ||
     "Usuário";
+  const avatarUrl =
+    profile?.avatar_url ||
+    (user?.user_metadata?.avatar_url as string | undefined) ||
+    (user?.user_metadata?.picture as string | undefined) ||
+    null;
   const initials = displayName
     .split(/[\s.]+/)
     .filter(Boolean)
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("") || "U";
+  const tier = profile?.tier ?? "STANDARD";
+  const tierBadge = USER_TIER_BADGE[tier];
 
   async function handleSignOut() {
     await signOut();
