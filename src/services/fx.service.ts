@@ -43,7 +43,8 @@ export async function getUsdRate(currency: string): Promise<FxQuote> {
     // fall through
   }
 
-  const fallback = USD_FX_RATES[cur] ?? 1;
+  const usdBaseRate = USD_FX_RATES[cur] ?? 1;
+  const fallback = cur === "USD" ? 1 : 1 / (usdBaseRate > 0 ? usdBaseRate : 1);
   return {
     currency: cur,
     rate: fallback,
