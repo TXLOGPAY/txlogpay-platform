@@ -128,7 +128,7 @@ export const operationsDb = {
     const ext = file.name.split(".").pop() || "bin";
     const path = `${userId}/${operationId}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage
-      .from("payment-proofs")
+      .from("payment-receipts")
       .upload(path, file, { upsert: true, contentType: file.type });
     if (error) throw error;
     return path;
