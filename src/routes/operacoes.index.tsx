@@ -12,8 +12,9 @@ export const Route = createFileRoute("/operacoes/")({
 });
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
+  PENDING_PAYMENT: { label: "Aguardando depósito", color: "var(--warning)" },
   ACTIVE:    { label: "Ativa",      color: "var(--secondary)" },
-  COMPLETED:   { label: "Concluída",  color: "var(--success)" },
+  COMPLETED: { label: "Concluída",  color: "var(--success)" },
   CANCELLED: { label: "Cancelada",  color: "var(--destructive)" },
 };
 
@@ -25,7 +26,7 @@ function computeKpis(ops: DBOperation[]) {
 }
 
 function OperacoesList() {
-  const { data: ops = [], isLoading, error } = useActiveOperations();
+  const { data: ops = [], isLoading, error } = useAllOperations();
   const k = computeKpis(ops);
   const currency = ops[0]?.currency || "USD";
 
