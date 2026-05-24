@@ -22,10 +22,19 @@ const TRADITIONAL_LC_RATE = 0.025;
 function computeKpis(all: DBOperation[]) {
   const active = all.filter((o) => o.status === "ACTIVE" || o.status === "OPERATION_MONITORING");
   const completed = all.filter((o) => o.status === "COMPLETED" || o.status === "PAYMENT_RELEASED");
-  // KPIs executivos consideram apenas operações ATIVAS e CONCLUÍDAS, normalizando para USD
   const counted = [...active, ...completed];
-  const usdProtected = (o: DBOperation) => toUSD(Number(o.protected_amount || 0), o.currency);
-  const usdFee = (o: DBOperation) => toUSD(Number(o.fee_amount || 0), o.currency);
+  // Prefer the persisted USD-normalised value; fall back to live FX conversion
+  // for legacy rows that pre-date the normalisation column.
+  const usdProtected = (o: DBOperation) =>
+    o.usd_normalized_value != null
+      ? Number(o.usd_normalized_value)
+      : toUSD(Number(o.protected_amount || 0), o.currency);
+  const usdFee = (o: DBOperation) => {
+    const rate = o.usd_conversion_rate != null ? Number(o.usd_conversion_rate) : null;
+    return rate != null
+      ? Number(o.fee_amount || 0) * rate
+      : toUSD(Number(o.fee_amount || 0), o.currency);
+  };
   const protectedAmount = active.reduce((s, o) => s + usdProtected(o), 0);
   const volume = counted.reduce((s, o) => s + usdProtected(o), 0);
   const fees = counted.reduce((s, o) => s + usdFee(o), 0);
@@ -51,7 +60,12 @@ function monthlySeries(ops: DBOperation[]) {
     const d = new Date(o.created_at);
     const key = `${d.getFullYear()}-${d.getMonth()}`;
     const b = buckets.get(key);
-    if (b) { b.volume += toUSD(Number(o.protected_amount || 0), o.currency); b.count++; }
+    if (b) {
+      const usd = o.usd_normalized_value != null
+        ? Number(o.usd_normalized_value)
+        : toUSD(Number(o.protected_amount || 0), o.currency);
+      b.volume += usd; b.count++;
+    }
   }
   return Array.from(buckets.values());
 }

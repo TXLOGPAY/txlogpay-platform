@@ -5,8 +5,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { ACTIVE_STATUSES } from "@/domain/operation-status";
+import { getUsdRate } from "@/services/fx.service";
 
-export type DBOperation = Database["public"]["Tables"]["operations"]["Row"];
+export type DBOperation = Database["public"]["Tables"]["operations"]["Row"] & {
+  operation_currency?: string | null;
+  usd_conversion_rate?: number | null;
+  usd_normalized_value?: number | null;
+  fx_reference_date?: string | null;
+};
 export type DBOperationInsert = Database["public"]["Tables"]["operations"]["Insert"];
 export type DBOperationUpdate = Database["public"]["Tables"]["operations"]["Update"];
 export type DBOperationStatus = Database["public"]["Enums"]["operation_status"];
@@ -18,7 +24,7 @@ function makeOperationCode() {
 
 // Only fields that actually exist on the operations table.
 // Anything not in this list is silently dropped before insert/update.
-const ALLOWED_COLUMNS: ReadonlyArray<keyof DBOperationInsert> = [
+const ALLOWED_COLUMNS = [
   "id", "user_id", "operation_code", "status",
   "protected_amount", "fee_amount", "total_amount", "currency",
   "incoterm", "release_trigger",
@@ -29,7 +35,9 @@ const ALLOWED_COLUMNS: ReadonlyArray<keyof DBOperationInsert> = [
   "payment_proof_url",
   "payment_receipt_url", "payment_receipt_name", "payment_submitted_at",
   "activated_at", "created_at", "updated_at",
-];
+  // FX normalisation columns
+  "operation_currency", "usd_conversion_rate", "usd_normalized_value", "fx_reference_date",
+] as const;
 
 function pickAllowed<T extends Record<string, unknown>>(input: T): Partial<DBOperationInsert> {
   const out: Record<string, unknown> = {};
@@ -74,7 +82,17 @@ export const operationsDb = {
   async createPending(
     input: Omit<DBOperationInsert, "operation_code" | "status"> & Record<string, unknown>,
   ): Promise<DBOperation> {
-    const safe = pickAllowed(input);
+    const safe = pickAllowed(input) as Record<string, unknown>;
+
+    // FX normalisation — always store USD-equivalent values for executive aggregation.
+    const currency = String(safe.currency ?? input.currency ?? "USD").toUpperCase();
+    const protectedAmount = Number(safe.protected_amount ?? input.protected_amount ?? 0);
+    const quote = await getUsdRate(currency);
+    safe.operation_currency = currency;
+    safe.usd_conversion_rate = quote.rate;
+    safe.usd_normalized_value = protectedAmount * quote.rate;
+    safe.fx_reference_date = quote.reference_date;
+
     const payload = {
       ...safe,
       operation_code: makeOperationCode(),
