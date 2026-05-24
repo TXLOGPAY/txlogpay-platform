@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { motion } from "motion/react";
 import {
@@ -8,6 +9,7 @@ import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, Tooltip } from "rechar
 import { useAllOperations } from "@/hooks/use-operations";
 import { useAuth } from "@/hooks/use-auth";
 import { formatCurrency } from "@/lib/formatters";
+import { calculateFinancialTotal, calculateProtectedTotal, fetchUsdBaseRates, getProtectedAmount, getTotalFees, toUsdAmount, type FxRates } from "@/lib/financial-calculations";
 import { TIER_FEES } from "@/services/fee-engine.service";
 import { USER_TIER_BADGE } from "@/types/profile.types";
 import type { DBOperation } from "@/services/operations.db";
@@ -21,22 +23,22 @@ export const Route = createFileRoute("/pagamentos")({
 // Estimativa institucional: carta de crédito tradicional ~ 2.5% sobre valor
 const TRADITIONAL_LC_RATE = 0.025;
 
-function computeFinancials(ops: DBOperation[]) {
+function computeFinancials(ops: DBOperation[], rates: FxRates, fxTimestamp: string | null) {
   const pending = ops.filter((o) => o.status === "PENDING_PAYMENT");
   const underReview = ops.filter((o) => o.status === "PAYMENT_UNDER_REVIEW");
   const active = ops.filter((o) => o.status === "ACTIVE" || o.status === "OPERATION_MONITORING");
   const completed = ops.filter((o) => o.status === "COMPLETED" || o.status === "PAYMENT_RELEASED");
 
-  const protectedActive = active.reduce((s, o) => s + Number(o.protected_amount || 0), 0);
-  const released = completed.reduce((s, o) => s + Number(o.protected_amount || 0), 0);
-  const totalFees = ops.reduce((s, o) => s + Number(o.fee_amount || 0), 0);
-  const traditionalCost = ops.reduce((s, o) => s + Number(o.protected_amount || 0) * TRADITIONAL_LC_RATE, 0);
-  const savings = Math.max(0, traditionalCost - totalFees);
+  const protectedActive = calculateProtectedTotal(active, rates, fxTimestamp);
+  const released = calculateProtectedTotal(completed, rates, fxTimestamp);
+  const transacted = calculateProtectedTotal([...active, ...completed], rates, fxTimestamp);
+  const totalFees = calculateFinancialTotal(ops, getTotalFees, rates, fxTimestamp);
+  const savings = { ...transacted, amount: Math.max(0, transacted.amount * TRADITIONAL_LC_RATE - totalFees.amount) };
 
-  return { pending, underReview, active, completed, protectedActive, released, totalFees, savings };
+  return { pending, underReview, active, completed, protectedActive, released, transacted, totalFees, savings };
 }
 
-function monthlySeries(ops: DBOperation[]) {
+function monthlySeries(ops: DBOperation[], rates: FxRates, forceUsd: boolean) {
   const buckets = new Map<string, { label: string; count: number; volume: number }>();
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
@@ -51,7 +53,8 @@ function monthlySeries(ops: DBOperation[]) {
     const b = buckets.get(key);
     if (b) {
       b.count++;
-      b.volume += Number(o.protected_amount || 0);
+      const amount = getProtectedAmount(o);
+      b.volume += forceUsd ? toUsdAmount(amount, o.currency, rates) : amount;
     }
   }
   return Array.from(buckets.values());
@@ -59,12 +62,13 @@ function monthlySeries(ops: DBOperation[]) {
 
 function Pagamentos() {
   const { data: ops = [], isLoading, error } = useAllOperations();
+  const { data: fx } = useQuery({ queryKey: ["fx", "usd-base-rates"], queryFn: fetchUsdBaseRates, staleTime: 5 * 60 * 1000 });
   const { profile } = useAuth();
   const tier: UserTier = (profile?.tier as UserTier) ?? "STANDARD";
   const tierMeta = USER_TIER_BADGE[tier];
-  const f = computeFinancials(ops);
-  const series = monthlySeries(ops);
-  const ccy = ops[0]?.currency || "USD";
+  const f = computeFinancials(ops, fx?.rates ?? { USD: 1 }, fx?.fxTimestamp ?? null);
+  const series = monthlySeries(ops, fx?.rates ?? { USD: 1 }, f.transacted.isConverted);
+  const fxTooltip = "Valores convertidos para USD com referência cambial em tempo real.";
 
   return (
     <AppShell>
@@ -94,9 +98,9 @@ function Pagamentos() {
           {/* KPIs reais */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
             <Kpi icon={Clock}        label="Aguardando depósito" value={String(f.pending.length)} hint={`${f.pending.length} aguardando pagamento`} tone="chip-warning" />
-            <Kpi icon={Shield}       label="Garantia ativa"      value={formatCurrency(f.protectedActive, ccy)} hint={`${f.active.length} operações monitoradas`} tone="chip-info" highlight />
-            <Kpi icon={CheckCircle2} label="Pagamentos liberados" value={formatCurrency(f.released, ccy)} hint={`${f.completed.length} concluídas`} tone="chip-success" />
-            <Kpi icon={TrendingUp}   label="Economia gerada"      value={formatCurrency(f.savings, ccy)} hint="vs. carta de crédito tradicional" tone="chip-cargo" />
+            <Kpi icon={Shield}       label="Garantia ativa"      value={formatCurrency(f.protectedActive.amount, f.protectedActive.currency)} hint={`${f.active.length} operações monitoradas`} tone="chip-info" highlight tooltip={f.protectedActive.isConverted ? fxTooltip : undefined} />
+            <Kpi icon={CheckCircle2} label="Pagamentos liberados" value={formatCurrency(f.released.amount, f.released.currency)} hint={`${f.completed.length} concluídas`} tone="chip-success" tooltip={f.released.isConverted ? fxTooltip : undefined} />
+            <Kpi icon={TrendingUp}   label="Economia gerada"      value={formatCurrency(f.savings.amount, f.savings.currency)} hint="vs. carta de crédito tradicional" tone="chip-cargo" tooltip={f.savings.isConverted ? fxTooltip : undefined} />
           </div>
 
           <div className="grid xl:grid-cols-3 gap-5 mt-6">
@@ -115,13 +119,13 @@ function Pagamentos() {
                   <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Volume mensal</div>
                   <Wallet className="h-4 w-4 text-secondary" />
                 </div>
-                <div className="text-2xl font-bold mt-1 text-gradient">{formatCurrency(f.protectedActive + f.released, ccy)}</div>
+                <div className="text-2xl font-bold mt-1 text-gradient">{formatCurrency(f.transacted.amount, f.transacted.currency)}</div>
                 <div className="text-[10px] text-muted-foreground font-mono">total transacionado</div>
                 <div className="h-28 mt-4">
                   <ResponsiveContainer>
                     <BarChart data={series}>
                       <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                      <Tooltip cursor={{ fill: "transparent" }} contentStyle={{ background: "var(--surface-container)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => formatCurrency(v, ccy)} />
+                      <Tooltip cursor={{ fill: "transparent" }} contentStyle={{ background: "var(--surface-container)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }} formatter={(v: number) => formatCurrency(v, f.transacted.currency)} />
                       <Bar dataKey="volume" radius={[4, 4, 0, 0]}>
                         {series.map((_, i) => (
                           <Cell key={i} fill={i === series.length - 1 ? "oklch(0.85 0.18 200)" : "oklch(0.85 0.18 200 / 0.4)"} />
