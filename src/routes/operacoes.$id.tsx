@@ -28,6 +28,7 @@ function OperacaoDetail() {
   const { id } = Route.useParams();
   const { user } = useAuth();
   const { data: op, isLoading, error } = useOperation(id);
+  const { data: settlement } = useSettlement(id);
   const submitReceipt = useSubmitReceipt();
   const validate = useValidatePayment();
 
