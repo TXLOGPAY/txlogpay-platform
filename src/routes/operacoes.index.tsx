@@ -54,7 +54,7 @@ function OperacoesList() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {KPIS.map((k, i) => (
           <motion.div key={k.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-            className={"card-surface p-6 " + (k.highlight ? "ring-1 ring-secondary/40 shadow-[0_0_30px_oklch(0.85_0.18_200/0.18)]" : "")}>
+            className={"card-surface p-6 " + (k.highlight ? "ring-1 ring-secondary/30" : "")}>
             <div className="flex justify-between items-start">
               <k.icon className="h-5 w-5 text-secondary" />
               <span className={"chip " + k.chipClass + " text-[10px]"}>{k.chip}</span>
