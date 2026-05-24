@@ -14,7 +14,7 @@ export const Route = createFileRoute("/operacoes/$id")({
 const STATUS_LABELS: Record<string, { label: string; tone: string }> = {
   PENDING_PAYMENT: { label: "Aguardando pagamento", tone: "chip-warning" },
   ACTIVE:          { label: "Ativa · Em monitoramento", tone: "chip-info" },
-  SETTLED:         { label: "Liquidada",       tone: "chip-success" },
+  COMPLETED:         { label: "Concluída",       tone: "chip-success" },
   CANCELLED:       { label: "Cancelada",       tone: "chip-warning" },
 };
 
@@ -65,7 +65,7 @@ function OperacaoDetail() {
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-surface p-7 ring-1 ring-secondary/30">
         <div className="flex items-start gap-4">
-          {op.status === "SETTLED" ? (
+          {op.status === "COMPLETED" ? (
             <CheckCircle2 className="h-10 w-10 text-success shrink-0" />
           ) : op.status === "ACTIVE" ? (
             <Shield className="h-10 w-10 text-secondary shrink-0" />
@@ -74,7 +74,7 @@ function OperacaoDetail() {
           )}
           <div>
             <h2 className="text-xl font-semibold">
-              {op.status === "SETTLED" ? "Operação liquidada" :
+              {op.status === "COMPLETED" ? "Operação liquidada" :
                op.status === "ACTIVE"  ? "Operação ativa — pagamento protegido" :
                                          "Operação cancelada"}
             </h2>
@@ -86,7 +86,7 @@ function OperacaoDetail() {
       </motion.div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <Info label="Valor protegido" value={formatCurrency(Number(op.amount), op.currency)} />
+        <Info label="Valor protegido" value={formatCurrency(Number(op.protected_amount), op.currency)} />
         <Info label="Taxa TXLOGPAY" value={formatCurrency(Number(op.fee_amount), op.currency)} />
         <Info label="Total pago" value={formatCurrency(Number(op.total_amount), op.currency)} highlight />
         <Info label="Incoterm" value={op.incoterm || "—"} />
@@ -123,7 +123,7 @@ function OperacaoDetail() {
           {op.activated_at && (
             <TimelineItem date={op.activated_at} title="Pagamento validado" desc="Operação ativada — entrou em monitoramento." accent />
           )}
-          {op.status === "SETTLED" && (
+          {op.status === "COMPLETED" && (
             <TimelineItem date={op.updated_at} title="Liquidação concluída" desc="Pagamento liberado ao exportador." accent />
           )}
         </ol>

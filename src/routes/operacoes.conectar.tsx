@@ -112,7 +112,7 @@ function NovaOperacao() {
     try {
       const op = await operationsDb.createPending({
         user_id: user.id,
-        amount: breakdown.gross_amount,
+        protected_amount: breakdown.gross_amount,
         fee_amount: breakdown.fee_amount + breakdown.custody_fee + breakdown.settlement_fee,
         total_amount: breakdown.total_funding,
         currency: commercial.currency,

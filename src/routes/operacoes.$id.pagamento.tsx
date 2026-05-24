@@ -31,7 +31,7 @@ function AwaitPayment() {
   if (error || !op) {
     return <AppShell><div className="card-surface p-10 text-center"><p className="text-destructive">Operação não encontrada</p></div></AppShell>;
   }
-  if (op.status === "ACTIVE" || op.status === "SETTLED") {
+  if (op.status === "ACTIVE" || op.status === "COMPLETED") {
     // already validated — go to detail
     navigate({ to: "/operacoes/$id", params: { id }, replace: true });
     return null;
@@ -89,7 +89,7 @@ function AwaitPayment() {
               <ShieldCheck className="h-4 w-4 text-secondary" /> Resumo Financeiro
             </h2>
             <div className="space-y-3 p-4 rounded-xl glass">
-              <Row label="Valor protegido" value={formatCurrency(Number(op.amount), op.currency)} />
+              <Row label="Valor protegido" value={formatCurrency(Number(op.protected_amount), op.currency)} />
               <Row label="Taxa TXLOGPAY" value={formatCurrency(Number(op.fee_amount), op.currency)} />
               <div className="h-px bg-border my-1" />
               <Row label="Total a pagar" value={formatCurrency(Number(op.total_amount), op.currency)} highlight />

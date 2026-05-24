@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { motion } from "motion/react";
 import { Shield, Truck, ClipboardCheck, Building2, Plus, Inbox, Loader2 } from "lucide-react";
-import { useActiveOperations } from "@/hooks/use-operations";
+import { useAllOperations } from "@/hooks/use-operations";
 import { formatCurrency } from "@/lib/formatters";
 import type { DBOperation } from "@/services/operations.db";
 
@@ -12,20 +12,21 @@ export const Route = createFileRoute("/operacoes/")({
 });
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
+  PENDING_PAYMENT: { label: "Aguardando depósito", color: "var(--warning)" },
   ACTIVE:    { label: "Ativa",      color: "var(--secondary)" },
-  SETTLED:   { label: "Liquidada",  color: "var(--success)" },
+  COMPLETED: { label: "Concluída",  color: "var(--success)" },
   CANCELLED: { label: "Cancelada",  color: "var(--destructive)" },
 };
 
 function computeKpis(ops: DBOperation[]) {
   const active = ops.filter((o) => o.status === "ACTIVE");
-  const settled = ops.filter((o) => o.status === "SETTLED");
-  const protectedSum = active.reduce((s, o) => s + Number(o.amount || 0), 0);
+  const settled = ops.filter((o) => o.status === "COMPLETED");
+  const protectedSum = active.reduce((s, o) => s + Number(o.protected_amount || 0), 0);
   return { activeCount: active.length, settledCount: settled.length, protectedSum, total: ops.length };
 }
 
 function OperacoesList() {
-  const { data: ops = [], isLoading, error } = useActiveOperations();
+  const { data: ops = [], isLoading, error } = useAllOperations();
   const k = computeKpis(ops);
   const currency = ops[0]?.currency || "USD";
 
@@ -100,7 +101,7 @@ function OperacoesList() {
                       </td>
                       <td className="py-4 pr-4 font-medium">{o.exporter_name || "—"}</td>
                       <td className="py-4 pr-4 text-muted-foreground">{o.beneficiary_country || "—"}</td>
-                      <td className="py-4 pr-4 font-mono">{formatCurrency(Number(o.amount), o.currency)}</td>
+                      <td className="py-4 pr-4 font-mono">{formatCurrency(Number(o.protected_amount), o.currency)}</td>
                       <td className="py-4 pr-4">
                         <span className="inline-flex items-center gap-1.5">
                           <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color, boxShadow: `0 0 8px ${meta.color}` }} />
