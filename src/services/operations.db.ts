@@ -94,20 +94,27 @@ export const operationsDb = {
   ): Promise<DBOperation> {
     const safe = pickAllowed(input) as Record<string, unknown>;
 
-    // Financial base: protected_amount is always operation_value - total_fees.
+    // Regra financeira oficial:
+    //   protected_amount  = operation_value (garantia = valor da carga)
+    //   total_amount      = operation_value + total_fees (total a pagar)
+    //   fee_amount        = receita TXLOGPAY, NÃO compõe garantia
     const currency = String(safe.currency ?? input.currency ?? "USD").toUpperCase();
     const operationValue = Number(safe.operation_value ?? input.operation_value ?? input.protected_amount ?? 0);
     const totalFees = Number(safe.total_fees ?? input.total_fees ?? input.fee_amount ?? 0);
     safe.operation_value = operationValue;
     safe.total_fees = totalFees;
-    safe.protected_amount = getProtectedAmount({ operation_value: operationValue, total_fees: totalFees });
+    safe.fee_amount = safe.fee_amount ?? totalFees;
+    safe.protected_amount = operationValue;
+    safe.total_amount = operationValue + totalFees;
 
-    // FX reference for operation detail; dashboard still recalculates from live cached USD-base rates.
+    // FX audit snapshot — preserva contexto cambial original (não recalcular retroativamente).
     const quote = await getUsdRate(currency);
     safe.operation_currency = currency;
     safe.usd_conversion_rate = quote.rate;
-    safe.usd_normalized_value = Number(safe.protected_amount) * quote.rate;
+    safe.usd_normalized_value = operationValue * quote.rate;
     safe.fx_reference_date = quote.reference_date;
+    safe.fx_currency_used = currency;
+    safe.fx_rate_to_usd = quote.rate;
 
     const payload = {
       ...safe,
