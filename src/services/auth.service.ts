@@ -8,7 +8,7 @@ export const authService = {
 
   async signUpWithEmail(email: string, password: string) {
     return supabase.auth.signUp({
-      email,
+      email, 
       password,
       options: {
         emailRedirectTo: "https://beta.txlogpay.com/dashboard",
