@@ -93,8 +93,8 @@ function Pagamentos() {
         <>
           {/* KPIs reais */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-            <Kpi icon={Clock}        label="Aguardando depósito" value={String(f.pending.length)} hint={`${f.pending.length} operação(ões) em PENDING_PAYMENT`} tone="chip-warning" />
-            <Kpi icon={Shield}       label="Garantia ativa"      value={formatCurrency(f.protectedActive, ccy)} hint={`${f.active.length} operações ativas`} tone="chip-info" highlight />
+            <Kpi icon={Clock}        label="Aguardando depósito" value={String(f.pending.length)} hint={`${f.pending.length} aguardando pagamento`} tone="chip-warning" />
+            <Kpi icon={Shield}       label="Garantia ativa"      value={formatCurrency(f.protectedActive, ccy)} hint={`${f.active.length} operações monitoradas`} tone="chip-info" highlight />
             <Kpi icon={CheckCircle2} label="Pagamentos liberados" value={formatCurrency(f.released, ccy)} hint={`${f.completed.length} concluídas`} tone="chip-success" />
             <Kpi icon={TrendingUp}   label="Economia gerada"      value={formatCurrency(f.savings, ccy)} hint="vs. carta de crédito tradicional" tone="chip-cargo" />
           </div>
@@ -103,7 +103,8 @@ function Pagamentos() {
             {/* Listas operacionais */}
             <div className="xl:col-span-2 space-y-5">
               <PaymentBlock title="Aguardando depósito" tone="warning" ops={f.pending} empty="Nenhuma operação aguardando depósito." />
-              <PaymentBlock title="Garantia ativa"      tone="info"    ops={f.active}  empty="Sem garantias ativas no momento." />
+              <PaymentBlock title="Pagamentos em análise" tone="info" ops={f.underReview} empty="Nenhum comprovante aguardando validação." showReceipt />
+              <PaymentBlock title="Operações monitoradas" tone="info" ops={f.active}  empty="Sem operações ativas no momento." />
               <PaymentBlock title="Pagamentos liberados" tone="success" ops={f.completed} empty="Nenhuma liquidação concluída ainda." />
             </div>
 
