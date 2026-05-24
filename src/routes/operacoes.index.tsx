@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { motion } from "motion/react";
 import { Shield, Truck, ClipboardCheck, Building2, Plus, Inbox, Loader2 } from "lucide-react";
 import { useAllOperations } from "@/hooks/use-operations";
 import { formatCurrency } from "@/lib/formatters";
+import { calculateProtectedTotal, fetchUsdBaseRates, getProtectedAmount, type FxRates } from "@/lib/financial-calculations";
 import type { DBOperation } from "@/services/operations.db";
 
 export const Route = createFileRoute("/operacoes/")({
@@ -13,23 +15,24 @@ export const Route = createFileRoute("/operacoes/")({
 
 import { STATUS_META, isActive } from "@/domain/operation-status";
 
-function computeKpis(ops: DBOperation[]) {
+function computeKpis(ops: DBOperation[], rates: FxRates, fxTimestamp: string | null) {
   const active = ops.filter((o) => isActive(o.status) && o.status !== "COMPLETED" && o.status !== "PAYMENT_RELEASED");
   const settled = ops.filter((o) => o.status === "COMPLETED" || o.status === "PAYMENT_RELEASED");
-  const protectedSum = active.reduce((s, o) => s + Number(o.protected_amount || 0), 0);
-  return { activeCount: active.length, settledCount: settled.length, protectedSum, total: ops.length };
+  const protectedTotal = calculateProtectedTotal(active, rates, fxTimestamp);
+  return { activeCount: active.length, settledCount: settled.length, protectedTotal, total: ops.length };
 }
 
 function OperacoesList() {
   const { data: ops = [], isLoading, error } = useAllOperations();
-  const k = computeKpis(ops);
-  const currency = ops[0]?.currency || "USD";
+  const { data: fx } = useQuery({ queryKey: ["fx", "usd-base-rates"], queryFn: fetchUsdBaseRates, staleTime: 5 * 60 * 1000 });
+  const k = computeKpis(ops, fx?.rates ?? { USD: 1 }, fx?.fxTimestamp ?? null);
+  const fxTooltip = "Valores convertidos para USD com referência cambial em tempo real.";
 
   const KPIS = [
-    { icon: Truck, label: "Operações Ativas", value: String(k.activeCount), chip: k.activeCount > 0 ? "Em monitoramento" : "Nenhuma", chipClass: "chip-info" },
-    { icon: Shield, label: "Pagamentos Protegidos", value: formatCurrency(k.protectedSum, currency), chip: "Garantia ativa", chipClass: "chip-info", highlight: true },
-    { icon: ClipboardCheck, label: "Total de Operações", value: String(k.total), chip: "Histórico", chipClass: "chip-info" },
-    { icon: Building2, label: "Operações Concluídas", value: String(k.settledCount), chip: "Finalizadas", chipClass: "chip-success" },
+    { icon: Truck, label: "Operações Ativas", value: String(k.activeCount), chip: k.activeCount > 0 ? "Em monitoramento" : "Nenhuma", chipClass: "chip-info", tooltip: undefined },
+    { icon: Shield, label: "Pagamentos Protegidos", value: formatCurrency(k.protectedTotal.amount, k.protectedTotal.currency), chip: "Garantia ativa", chipClass: "chip-info", highlight: true, tooltip: k.protectedTotal.isConverted ? fxTooltip : undefined },
+    { icon: ClipboardCheck, label: "Total de Operações", value: String(k.total), chip: "Histórico", chipClass: "chip-info", tooltip: undefined },
+    { icon: Building2, label: "Operações Concluídas", value: String(k.settledCount), chip: "Finalizadas", chipClass: "chip-success", tooltip: undefined },
   ];
 
   return (
@@ -49,7 +52,7 @@ function OperacoesList() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
         {KPIS.map((k, i) => (
           <motion.div key={k.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-            className={"card-surface p-6 " + (k.highlight ? "ring-1 ring-secondary/30" : "")}>
+            className={"card-surface p-6 " + (k.highlight ? "ring-1 ring-secondary/30" : "")} title={k.tooltip}>
             <div className="flex justify-between items-start">
               <k.icon className="h-5 w-5 text-secondary" />
               <span className={"chip " + k.chipClass + " text-[10px]"}>{k.chip}</span>
@@ -96,7 +99,7 @@ function OperacoesList() {
                       </td>
                       <td className="py-4 pr-4 font-medium">{o.exporter_name || "—"}</td>
                       <td className="py-4 pr-4 text-muted-foreground">{o.beneficiary_country || "—"}</td>
-                      <td className="py-4 pr-4 font-mono">{formatCurrency(Number(o.protected_amount), o.currency)}</td>
+                      <td className="py-4 pr-4 font-mono">{formatCurrency(getProtectedAmount(o), o.currency)}</td>
                       <td className="py-4 pr-4">
                         <span className="inline-flex items-center gap-1.5">
                           <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.color, boxShadow: `0 0 8px ${meta.color}` }} />
