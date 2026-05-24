@@ -58,6 +58,6 @@ export const settlementsDb = {
       .select("*")
       .single();
     if (error) throw error;
-    return data as Settlement;
+    return data as unknown as Settlement;
   },
 };
