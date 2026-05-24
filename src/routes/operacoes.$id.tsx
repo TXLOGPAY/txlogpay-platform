@@ -1,227 +1,162 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { motion } from "motion/react";
-import {
-  CheckCircle2, Lock, Network, Key, Zap, Clock, Shield, FileText, Crown, Infinity, AlertCircle, Plug,
-} from "lucide-react";
-import {
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell,
-} from "recharts";
+import { CheckCircle2, Shield, Zap, FileText, Clock, Loader2 } from "lucide-react";
+import { useOperation } from "@/hooks/use-operations";
+import { formatCurrency } from "@/lib/formatters";
 
 export const Route = createFileRoute("/operacoes/$id")({
   head: ({ params }) => ({ meta: [{ title: `Operação ${params.id} — TXLOGPAY` }] }),
   component: OperacaoDetail,
 });
 
-const TIMELINE = [
-  { d: "02/05", t: "DUIMP registrada", s: "Transmissão realizada com sucesso via API Siscomex." },
-  { d: "03/05", t: "Documentos validados", s: "Conformidade documental atestada pelo sistema TXLOGPAY." },
-  { d: "05/05", t: "Parametrização aduaneira", s: "Processo direcionado para análise fiscal." },
-  { d: "07/05", t: "Canal verde identificado", s: "Liberação sem necessidade de conferência física ou documental." },
-  { d: "07/05 · 14:32", t: "Carga desembaraçada", s: "Status oficial atualizado: Desembaraço concedido.", highlight: true },
-  { d: "07/05 · 14:32:08", t: "Pagamento liberado automaticamente", s: "Condição satisfeita. Liquidação imediata do câmbio via Proteção Financeira vinculada.", accent: true },
-];
-
-const COMPARISON = [
-  { name: "Carta de Crédito Tradicional", value: 3560, fill: "oklch(0.65 0.20 25)" },
-  { name: "TXLOGPAY Standard (0,80%)", value: 1140, fill: "oklch(0.85 0.18 200)" },
-];
+const STATUS_LABELS: Record<string, { label: string; tone: string }> = {
+  PENDING_PAYMENT: { label: "Aguardando pagamento", tone: "chip-warning" },
+  ACTIVE:          { label: "Ativa · Em monitoramento", tone: "chip-info" },
+  SETTLED:         { label: "Liquidada",       tone: "chip-success" },
+  CANCELLED:       { label: "Cancelada",       tone: "chip-warning" },
+};
 
 function OperacaoDetail() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const { data: op, isLoading, error } = useOperation(id);
+
+  useEffect(() => {
+    if (op?.status === "PENDING_PAYMENT") {
+      navigate({ to: "/operacoes/$id/pagamento", params: { id }, replace: true });
+    }
+  }, [op?.status, id, navigate]);
+
+  if (isLoading) {
+    return <AppShell><div className="grid place-items-center py-20"><Loader2 className="h-6 w-6 text-secondary animate-spin" /></div></AppShell>;
+  }
+  if (error || !op) {
+    return (
+      <AppShell>
+        <div className="card-surface p-10 text-center">
+          <p className="text-destructive">Operação não encontrada</p>
+          <Link to="/operacoes" className="btn-primary inline-flex mt-4 rounded-xl px-5 py-2.5 text-sm font-semibold">Voltar</Link>
+        </div>
+      </AppShell>
+    );
+  }
+
+  const meta = STATUS_LABELS[op.status] ?? { label: op.status, tone: "chip-info" };
+
   return (
     <AppShell>
       <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground mb-4">
         <Link to="/dashboard" className="hover:text-foreground">Dashboard</Link> ›{" "}
         <Link to="/operacoes" className="hover:text-foreground">Operações</Link> ›{" "}
-        <span className="text-secondary">{id}</span>
+        <span className="text-secondary">{op.operation_code}</span>
       </div>
 
       <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Operação {id}</h1>
-          <p className="text-sm text-muted-foreground mt-1">Importação marítima · China → Santos/SP</p>
+          <h1 className="text-3xl font-bold">Operação #{op.operation_code}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {op.exporter_name || "—"} · {op.beneficiary_country || "—"}
+          </p>
         </div>
-        <div className="flex gap-3">
-          <button className="rounded-xl px-4 py-2.5 text-sm border border-border hover:bg-surface-container flex items-center gap-2"><FileText className="h-4 w-4" /> Relatório PDF</button>
-          <button className="btn-primary rounded-xl px-5 py-2.5 text-sm font-semibold flex items-center gap-2"><Zap className="h-4 w-4" /> Atualizar Status</button>
-        </div>
+        <span className={"chip text-[11px] " + meta.tone}>{meta.label}</span>
       </div>
 
-      {/* Hero event card */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-surface p-7 relative overflow-hidden ring-1 ring-secondary/30">
-        <div className="absolute right-6 top-6"><Shield className="h-5 w-5 text-secondary" /></div>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-surface p-7 ring-1 ring-secondary/30">
         <div className="flex items-start gap-4">
-          <CheckCircle2 className="h-10 w-10 text-secondary shrink-0" />
-          <div className="flex-1">
-            <h2 className="text-xl md:text-2xl font-semibold leading-snug">
-              Evento aduaneiro identificado: Desembaraço confirmado pela Receita Federal.
+          {op.status === "SETTLED" ? (
+            <CheckCircle2 className="h-10 w-10 text-success shrink-0" />
+          ) : op.status === "ACTIVE" ? (
+            <Shield className="h-10 w-10 text-secondary shrink-0" />
+          ) : (
+            <Clock className="h-10 w-10 text-warning shrink-0" />
+          )}
+          <div>
+            <h2 className="text-xl font-semibold">
+              {op.status === "SETTLED" ? "Operação liquidada" :
+               op.status === "ACTIVE"  ? "Operação ativa — pagamento protegido" :
+                                         "Operação cancelada"}
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground max-w-3xl">
-              Evento gatilho confirmado: <strong className="text-foreground">Carga desembaraçada pela Receita Federal.</strong> O <span className="text-secondary">Pagamento Protegido</span> foi liberado instantaneamente com base nos dados do Siscomex.
+            <p className="text-sm text-muted-foreground mt-1">
+              Status atualizado em {new Date(op.updated_at).toLocaleString("pt-BR")}
             </p>
-            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mt-3">Fonte: Siscomex Portal Único</div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-7">
-          {[
-            { icon: Lock, label: "Proteção Financeira" },
-            { icon: Network, label: "Canal Verde" },
-            { icon: Key, label: "Liberação" },
-            { icon: Zap, label: "Liquidação" },
-          ].map((s, i) => (
-            <div key={s.label} className="flex flex-col items-center text-center relative">
-              <div className="h-11 w-11 rounded-xl grid place-items-center" style={{ background: i === 3 ? "var(--gradient-brand)" : "color-mix(in oklab, var(--secondary) 12%, transparent)" }}>
-                <s.icon className="h-5 w-5 text-secondary" />
-              </div>
-              <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mt-2">{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 mt-6 text-xs">
-          <span className="text-secondary inline-flex items-center gap-2"><Clock className="h-3.5 w-3.5" /> Liquidação executada em 8 segundos</span>
-          <span className="text-muted-foreground">Liquidação vinculada ao evento aduaneiro</span>
         </div>
       </motion.div>
 
-      {/* Info row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        {[
-          { label: "Importador", value: "LogiCorp S.A.", sub: "CNPJ: 12.345.678/0001-90" },
-          { label: "Exportador", value: "Ningbo Global Trade", sub: "Zhejiang, CN" },
-          { label: "Invoice", value: "INV-2024-8829", sub: "USD 142,500.00" },
-          { label: "BL / ETA", value: "MSC ROSA", sub: "12/05/2024" },
-        ].map(c => (
-          <div key={c.label} className="card-surface p-5">
-            <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{c.label}</div>
-            <div className="font-semibold mt-1">{c.value}</div>
-            <div className="text-xs text-muted-foreground mt-1">{c.sub}</div>
-          </div>
-        ))}
+        <Info label="Valor protegido" value={formatCurrency(Number(op.amount), op.currency)} />
+        <Info label="Taxa TXLOGPAY" value={formatCurrency(Number(op.fee_amount), op.currency)} />
+        <Info label="Total pago" value={formatCurrency(Number(op.total_amount), op.currency)} highlight />
+        <Info label="Incoterm" value={op.incoterm || "—"} />
       </div>
 
-      {/* Main split */}
-      <div className="grid lg:grid-cols-3 gap-5 mt-5">
-        <div className="lg:col-span-2 space-y-5">
-          {/* Eficiência */}
-          <div className="card-surface p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-semibold">Eficiência Financeira</h3>
-                <p className="text-xs text-muted-foreground mt-1">Comparativo de custos e taxas operacionais (USD)</p>
-              </div>
-              <span className="chip chip-info text-[10px]">Plano Atual: Standard</span>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4 mt-5">
-              <div className="p-4 rounded-xl glass">
-                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Detalhamento de Taxas</div>
-                <div className="flex justify-between mt-3"><div><div className="font-semibold">Fee Operacional Standard</div><div className="text-[11px] text-muted-foreground">Variável conforme volume operacional</div></div><div className="text-2xl font-bold text-gradient">0,80%</div></div>
-                <div className="flex justify-between mt-4 opacity-70"><div><div>Fee Enterprise (Upgrade disponível)</div></div><div className="text-lg font-semibold">0,45%</div></div>
-              </div>
-              <div className="p-4 rounded-xl glass">
-                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Economia vs. Mercado</div>
-                <div className="h-32 mt-3">
-                  <ResponsiveContainer>
-                    <BarChart data={COMPARISON} layout="vertical" margin={{ left: 0, right: 30 }}>
-                      <XAxis type="number" hide />
-                      <YAxis type="category" dataKey="name" hide />
-                      <Tooltip cursor={{ fill: "transparent" }} contentStyle={{ background: "oklch(0.20 0.09 270)", border: "1px solid oklch(1 0 0 / 0.1)", borderRadius: 12, fontSize: 12 }} />
-                      <Bar dataKey="value" radius={[0, 8, 8, 0]} label={{ position: "right", fill: "var(--foreground)", fontSize: 11, formatter: (v: number) => `USD ${v.toLocaleString()}` }}>
-                        {COMPARISON.map((c, i) => <Cell key={i} fill={c.fill} />)}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-2 text-sm">Economia Estimada <span className="text-secondary font-semibold">USD 2.420</span></div>
-                <div className="mt-3 p-3 rounded-lg bg-accent/10 border border-accent/30">
-                  <div className="font-mono text-[10px] uppercase tracking-widest text-accent">Potencial Enterprise</div>
-                  <div className="flex justify-between text-xs mt-1"><span>Com upgrade Enterprise (0,45%)</span><span className="font-semibold">USD 641</span></div>
-                  <div className="flex justify-between text-xs"><span>Economia adicional possível</span><span className="font-semibold">USD 499</span></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Timeline */}
-          <div className="card-surface p-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Timeline de Alfândega</h3>
-              <span className="chip chip-info text-[10px]"><span className="pulse-dot before:inline-block before:mr-1.5"></span>Monitoramento em Tempo Real</span>
-            </div>
-            <div className="mt-6 relative pl-6">
-              <div className="absolute left-2 top-2 bottom-2 w-px bg-border" />
-              <div className="space-y-5">
-                {TIMELINE.map((e, i) => (
-                  <div key={i} className="relative">
-                    <div className={"absolute -left-5 top-1 h-3 w-3 rounded-full ring-2 ring-background " + (e.accent ? "bg-accent shadow-[0_0_12px_oklch(0.70_0.24_320)]" : e.highlight ? "bg-secondary shadow-[0_0_12px_oklch(0.85_0.18_200)]" : "bg-muted-foreground")} />
-                    <div className={"p-4 rounded-xl " + (e.accent ? "bg-accent/10 border border-accent/30" : e.highlight ? "bg-secondary/10 border border-secondary/30" : "")}>
-                      <div className="text-sm font-semibold">{e.d} — {e.t}</div>
-                      <div className="text-xs text-muted-foreground mt-1">{e.s}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <div className="grid lg:grid-cols-2 gap-5 mt-5">
+        <div className="card-surface p-6">
+          <h3 className="text-lg font-semibold mb-4">Beneficiário</h3>
+          <div className="space-y-3 text-sm">
+            <KV k="Exportador" v={op.exporter_name || "—"} />
+            <KV k="Banco" v={op.bank_name || "—"} />
+            <KV k="SWIFT" v={op.swift || "—"} mono />
+            <KV k="IBAN" v={op.iban || "—"} mono />
+            <KV k="País / Cidade" v={`${op.beneficiary_country || "—"} · ${op.beneficiary_city || "—"}`} />
           </div>
         </div>
 
-        <div className="space-y-5">
-          {/* Liquidation summary */}
-          <div className="card-surface p-6 ring-1 ring-accent/30">
-            <h3 className="text-lg font-semibold">Liquidação Pós-Desembaraço</h3>
-            <div className="mt-5 space-y-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Valor protegido</span><span className="font-semibold">USD 142.500,00</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Taxa fixada (VET)</span><span>USD 1.0000</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Status Proteção</span><span className="text-secondary inline-flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" />Concluída</span></div>
-            </div>
-            <div className="mt-5 p-4 rounded-xl glass flex items-center gap-3">
-              <Zap className="h-5 w-5 text-accent" />
-              <div>
-                <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Confirmação</div>
-                <div className="font-semibold text-sm">Liquidação concluída</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Upgrade Enterprise */}
-          <div className="card-surface p-6">
-            <div className="flex items-center gap-2"><Crown className="h-4 w-4 text-accent" /><h3 className="text-lg font-semibold">Upgrade Enterprise</h3></div>
-            <div className="mt-4 space-y-4 text-sm">
-              {[
-                { i: Zap, t: "Menor fee operacional (0,45%)", s: "Taxa exclusiva reduzida para altos volumes." },
-                { i: Infinity, t: "Operações ilimitadas", s: "Sem limites mensais de volume transacionado." },
-                { i: AlertCircle, t: "Prioridade operacional", s: "Fila de processamento dedicada e suporte 24/7." },
-                { i: Plug, t: "Integração API", s: "Conecte seus sistemas diretamente ao fluxo aduaneiro." },
-              ].map(b => (
-                <div key={b.t} className="flex gap-3">
-                  <b.i className="h-4 w-4 text-secondary mt-0.5 shrink-0" />
-                  <div>
-                    <div className="font-medium">{b.t}</div>
-                    <div className="text-xs text-muted-foreground">{b.s}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="text-[10px] text-muted-foreground mt-5 italic">Condições personalizadas conforme volume transacional.</div>
-            <button className="mt-4 w-full rounded-xl py-3 font-semibold text-sm" style={{ background: "var(--gradient-accent)" }}>Solicitar Upgrade</button>
-          </div>
-
-          {/* Documentation */}
-          <div className="card-surface p-6">
-            <h3 className="text-lg font-semibold mb-4">Documentação</h3>
-            <div className="space-y-2">
-              {["Commercial_Invoice.pdf", "Packing_List_8829.pdf", "Master_BL_Ningbo.pdf"].map(d => (
-                <div key={d} className="flex items-center justify-between p-3 rounded-lg glass text-sm">
-                  <span className="flex items-center gap-2"><FileText className="h-4 w-4 text-secondary" />{d}</span>
-                  <span className="chip chip-success text-[9px]">Validado</span>
-                </div>
-              ))}
-            </div>
+        <div className="card-surface p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><FileText className="h-4 w-4 text-secondary" /> Documentação</h3>
+          <div className="space-y-3 text-sm">
+            <KV k="Invoice" v={op.invoice_number || "—"} mono />
+            <KV k="BL / AWB" v={op.bl_awb || "—"} mono />
+            <KV k="DUIMP" v={op.duimp || "—"} mono />
+            <KV k="Referência Siscomex" v={op.siscomex_reference || "—"} mono />
           </div>
         </div>
+      </div>
+
+      <div className="card-surface p-6 mt-5">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><Zap className="h-4 w-4 text-secondary" /> Timeline</h3>
+        <ol className="relative border-l border-border ml-3 space-y-4">
+          <TimelineItem date={op.created_at} title="Operação registrada" desc="Rascunho operacional criado." />
+          <TimelineItem date={op.created_at} title="Pagamento solicitado" desc="Comprovante aguardando upload e validação." />
+          {op.activated_at && (
+            <TimelineItem date={op.activated_at} title="Pagamento validado" desc="Operação ativada — entrou em monitoramento." accent />
+          )}
+          {op.status === "SETTLED" && (
+            <TimelineItem date={op.updated_at} title="Liquidação concluída" desc="Pagamento liberado ao exportador." accent />
+          )}
+        </ol>
       </div>
     </AppShell>
+  );
+}
+
+function Info({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="card-surface p-5">
+      <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
+      <div className={"font-semibold mt-1 " + (highlight ? "text-secondary text-lg font-mono" : "")}>{value}</div>
+    </div>
+  );
+}
+
+function KV({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+  return (
+    <div className="flex justify-between gap-3">
+      <span className="text-muted-foreground">{k}</span>
+      <span className={mono ? "font-mono" : ""}>{v}</span>
+    </div>
+  );
+}
+
+function TimelineItem({ date, title, desc, accent }: { date: string; title: string; desc: string; accent?: boolean }) {
+  return (
+    <li className="pl-5 relative">
+      <span className={"absolute -left-[6px] top-1.5 h-3 w-3 rounded-full ring-2 ring-background " + (accent ? "bg-secondary shadow-[0_0_10px_oklch(0.85_0.18_200/0.7)]" : "bg-muted-foreground")} />
+      <div className="text-sm font-semibold">{title}</div>
+      <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
+      <div className="text-[10px] font-mono text-muted-foreground mt-0.5">{new Date(date).toLocaleString("pt-BR")}</div>
+    </li>
   );
 }

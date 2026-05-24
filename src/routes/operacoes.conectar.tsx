@@ -23,27 +23,24 @@ import { type UploadedFile } from "@/schemas/upload.schema";
 import { formatCurrency, maskCurrencyInput, parseCurrencyInput, maskIBAN, maskSWIFT, maskDUIMP, maskInvoice } from "@/lib/formatters";
 import { COUNTRIES, suggestCities } from "@/lib/countries";
 
-import { operationService } from "@/services/operation.service";
-import { escrowService } from "@/services/escrow.service";
-import { eventEngine } from "@/services/event-engine.service";
+import { operationsDb } from "@/services/operations.db";
 
 import { FileDropzone } from "@/components/FileDropzone";
 
-import type { Operation, Currency, Incoterm, ReleaseTrigger } from "@/types";
+import type { Currency, Incoterm, ReleaseTrigger } from "@/types";
 
 export const Route = createFileRoute("/operacoes/conectar")({
   head: () => ({ meta: [{ title: "Nova Operação — TXLOGPAY" }] }),
   component: NovaOperacao,
 });
 
-type StepIndex = 0 | 1 | 2 | 3 | 4;
+type StepIndex = 0 | 1 | 2 | 3;
 
 const STEPS = [
   { label: "Dados Comerciais",     icon: FileText },
   { label: "Documentação",         icon: FileCheck2 },
   { label: "Dados Bancários",      icon: Banknote },
-  { label: "Garantia Operacional", icon: ShieldCheck },
-  { label: "Operação Ativada",     icon: Sparkles },
+  { label: "Confirmação",          icon: ShieldCheck },
 ] as const;
 
 function NovaOperacao() {
@@ -107,68 +104,36 @@ function NovaOperacao() {
 
   async function handleActivate() {
     if (!validateStep(3)) return;
+    if (!user?.id) {
+      setErrors({ _: "Sessão expirada. Faça login novamente." });
+      return;
+    }
     setSubmitting(true);
     try {
-      const op = await operationService.create({
-        user_id: user?.id ?? null,
-        incoterm: commercial.incoterm as Incoterm,
+      const op = await operationsDb.createPending({
+        user_id: user.id,
+        amount: breakdown.gross_amount,
+        fee_amount: breakdown.fee_amount + breakdown.custody_fee + breakdown.settlement_fee,
+        total_amount: breakdown.total_funding,
         currency: commercial.currency,
-        operation_value: commercial.operation_value,
+        incoterm: commercial.incoterm as Incoterm,
         release_trigger: commercial.release_trigger as ReleaseTrigger,
-        duimp: documentation.duimp,
+        exporter_name: beneficiary.exporter_name,
+        importer_name: user.user_metadata?.full_name || user.email || null,
+        bank_name: beneficiary.bank_name,
+        swift: beneficiary.swift,
+        iban: beneficiary.iban,
+        beneficiary_country: beneficiary.country,
+        beneficiary_city: beneficiary.city,
         invoice_number: documentation.invoice_number,
         bl_awb: documentation.bl_awb,
+        duimp: documentation.duimp,
         siscomex_reference: documentation.siscomex_reference,
-        beneficiary: {
-          id: "tmp",
-          operation_id: "tmp",
-          exporter_name: beneficiary.exporter_name,
-          bank_name: beneficiary.bank_name,
-          swift: beneficiary.swift,
-          iban: beneficiary.iban,
-          beneficiary_name: beneficiary.beneficiary_name,
-          country: beneficiary.country,
-          city: beneficiary.city,
-        },
-        escrow: escrowService.create({
-          operation_id: "tmp",
-          gross_amount: commercial.operation_value,
-          currency: commercial.currency,
-          tier,
-        }),
-        status: "PENDING_FUNDING",
       });
-
-      // Transition through funding → review → monitoring with proper events.
-      let next1 = eventEngine.apply(op, {
-        event_type: "FUNDING_RECEIVED",
-        description: `Garantia operacional recebida via ${guarantee.method.toUpperCase()}`,
-        source: "USER",
-        transition: "FUNDING_RECEIVED",
-      });
-      next1 = eventEngine.apply(next1, {
-        event_type: "REVIEW_APPROVED",
-        description: "Validação operacional automática concluída",
-        source: "TXLOGPAY",
-        transition: "REVIEW_APPROVED",
-      });
-      next1 = eventEngine.apply(next1, {
-        event_type: "MONITORING_STARTED",
-        description: "Monitoramento de eventos aduaneiros iniciado",
-        source: "TXLOGPAY",
-        transition: "MONITORING_STARTED",
-      });
-      next1 = eventEngine.apply(next1, {
-        event_type: "ANCHOR_RESERVED",
-        description: "Fundos reservados no Stellar Anchor (mock)",
-        source: "ANCHOR",
-        transition: "MONITORING_STARTED",
-      });
-
-      await operationService.update(op.id, { events: next1.events, status: next1.status });
-      setEscrow(next1.escrow ?? null);
-      setCurrent(next1);
-      setStep(4);
+      navigate({ to: "/operacoes/$id/pagamento", params: { id: op.id } });
+    } catch (e) {
+      console.error(e);
+      setErrors({ _: (e as Error).message });
     } finally {
       setSubmitting(false);
     }
@@ -214,40 +179,37 @@ function NovaOperacao() {
               {step === 1 && <Step2Documents errors={errors} />}
               {step === 2 && <Step3Bank errors={errors} />}
               {step === 3 && <Step4Guarantee />}
-              {step === 4 && current && (
-                <Step5Activated op={current} onGo={() => navigate({ to: "/operacoes/$id", params: { id: current.id } })} />
-              )}
             </motion.div>
           </AnimatePresence>
 
-          {step < 4 && (
-            <div className="mt-6 flex items-center justify-between">
-              <button
-                onClick={prev}
-                disabled={step === 0}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <ArrowLeft className="h-4 w-4" /> Voltar
-              </button>
+          {errors._ && <div className="mt-3 text-xs text-destructive">{errors._}</div>}
 
-              {step < 3 ? (
-                <button
-                  onClick={next}
-                  className="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold"
-                >
-                  Continuar <ArrowRight className="h-4 w-4" />
-                </button>
-              ) : (
-                <button
-                  onClick={handleActivate}
-                  disabled={submitting}
-                  className="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold disabled:opacity-50"
-                >
-                  {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Ativando...</> : <><ShieldCheck className="h-4 w-4" /> Ativar Operação</>}
-                </button>
-              )}
-            </div>
-          )}
+          <div className="mt-6 flex items-center justify-between">
+            <button
+              onClick={prev}
+              disabled={step === 0}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-surface-container disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ArrowLeft className="h-4 w-4" /> Voltar
+            </button>
+
+            {step < 3 ? (
+              <button
+                onClick={next}
+                className="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold"
+              >
+                Continuar <ArrowRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                onClick={handleActivate}
+                disabled={submitting}
+                className="btn-primary inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold disabled:opacity-50"
+              >
+                {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Registrando...</> : <><ShieldCheck className="h-4 w-4" /> Confirmar e Pagar</>}
+              </button>
+            )}
+          </div>
         </div>
 
         <SidePanel
@@ -706,51 +668,7 @@ function PixQR({ seed }: { seed: string }) {
   );
 }
 
-/* ----------------------------- Step 5: Activated ----------------------------- */
-
-function Step5Activated({ op, onGo }: { op: Operation; onGo: () => void }) {
-  const meta = OPERATION_STATUS_META[op.status];
-  return (
-    <div className="card-surface p-8 space-y-6">
-      <motion.div initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center space-y-3">
-        <div className="mx-auto h-16 w-16 rounded-full grid place-items-center shadow-[0_0_40px_oklch(0.85_0.18_200/0.5)]" style={{ background: "var(--gradient-brand)" }}>
-          <Check className="h-8 w-8 text-primary-foreground" />
-        </div>
-        <h2 className="text-2xl font-bold">Operação ativada</h2>
-        <p className="text-sm text-muted-foreground">
-          <span className="font-mono text-foreground">{op.operation_code}</span> · ID{" "}
-          <span className="font-mono text-foreground">{op.id}</span>
-        </p>
-        <StatusBadge label={meta.label} tone={meta.tone} />
-      </motion.div>
-
-      <div className="grid sm:grid-cols-3 gap-3">
-        <Summary label="Incoterm" value={op.incoterm} />
-        <Summary label="Valor" value={formatCurrency(op.operation_value, op.currency)} highlight />
-        <Summary label="DUIMP" value={op.duimp || "—"} mono />
-      </div>
-
-      <div>
-        <div className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground mb-3">Timeline operacional</div>
-        <ol className="relative border-l border-border ml-3 space-y-4">
-          {op.events.map((e) => (
-            <li key={e.id} className="pl-5 relative">
-              <span className="absolute -left-[6px] top-1.5 h-3 w-3 rounded-full bg-secondary shadow-[0_0_10px_oklch(0.85_0.18_200/0.7)]" />
-              <div className="text-sm font-medium">{e.description}</div>
-              <div className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                {new Date(e.timestamp).toLocaleString("pt-BR")} · {e.source}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      <button onClick={onGo} className="btn-primary w-full rounded-xl py-3.5 font-semibold flex items-center justify-center gap-2">
-        Ir para painel da operação <ArrowRight className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
+/* Step 5 removed — flow now redirects to /operacoes/$id/pagamento */
 
 /* ----------------------------- Side panel ----------------------------- */
 

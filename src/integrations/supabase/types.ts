@@ -14,6 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
+      operations: {
+        Row: {
+          activated_at: string | null
+          amount: number
+          bank_name: string | null
+          beneficiary_city: string | null
+          beneficiary_country: string | null
+          bl_awb: string | null
+          created_at: string
+          currency: string
+          duimp: string | null
+          exporter_name: string | null
+          fee_amount: number
+          iban: string | null
+          id: string
+          importer_name: string | null
+          incoterm: string | null
+          invoice_number: string | null
+          operation_code: string
+          payment_proof_url: string | null
+          release_trigger: string | null
+          siscomex_reference: string | null
+          status: Database["public"]["Enums"]["operation_status"]
+          swift: string | null
+          total_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          activated_at?: string | null
+          amount?: number
+          bank_name?: string | null
+          beneficiary_city?: string | null
+          beneficiary_country?: string | null
+          bl_awb?: string | null
+          created_at?: string
+          currency?: string
+          duimp?: string | null
+          exporter_name?: string | null
+          fee_amount?: number
+          iban?: string | null
+          id?: string
+          importer_name?: string | null
+          incoterm?: string | null
+          invoice_number?: string | null
+          operation_code: string
+          payment_proof_url?: string | null
+          release_trigger?: string | null
+          siscomex_reference?: string | null
+          status?: Database["public"]["Enums"]["operation_status"]
+          swift?: string | null
+          total_amount?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          activated_at?: string | null
+          amount?: number
+          bank_name?: string | null
+          beneficiary_city?: string | null
+          beneficiary_country?: string | null
+          bl_awb?: string | null
+          created_at?: string
+          currency?: string
+          duimp?: string | null
+          exporter_name?: string | null
+          fee_amount?: number
+          iban?: string | null
+          id?: string
+          importer_name?: string | null
+          incoterm?: string | null
+          invoice_number?: string | null
+          operation_code?: string
+          payment_proof_url?: string | null
+          release_trigger?: string | null
+          siscomex_reference?: string | null
+          status?: Database["public"]["Enums"]["operation_status"]
+          swift?: string | null
+          total_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -55,6 +139,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      operation_status: "PENDING_PAYMENT" | "ACTIVE" | "SETTLED" | "CANCELLED"
       user_tier: "STANDARD" | "ENTERPRISE" | "VIP" | "ANCHOR_PARTNER"
     }
     CompositeTypes: {
@@ -183,6 +268,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      operation_status: ["PENDING_PAYMENT", "ACTIVE", "SETTLED", "CANCELLED"],
       user_tier: ["STANDARD", "ENTERPRISE", "VIP", "ANCHOR_PARTNER"],
     },
   },

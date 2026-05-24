@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as OperacoesIndexRouteImport } from './routes/operacoes.index'
 import { Route as OperacoesConectarRouteImport } from './routes/operacoes.conectar'
 import { Route as OperacoesIdRouteImport } from './routes/operacoes.$id'
+import { Route as OperacoesIdPagamentoRouteImport } from './routes/operacoes.$id.pagamento'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -76,6 +77,11 @@ const OperacoesIdRoute = OperacoesIdRouteImport.update({
   path: '/operacoes/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OperacoesIdPagamentoRoute = OperacoesIdPagamentoRouteImport.update({
+  id: '/pagamento',
+  path: '/pagamento',
+  getParentRoute: () => OperacoesIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -86,9 +92,10 @@ export interface FileRoutesByFullPath {
   '/pagamentos': typeof PagamentosRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/operacoes/$id': typeof OperacoesIdRoute
+  '/operacoes/$id': typeof OperacoesIdRouteWithChildren
   '/operacoes/conectar': typeof OperacoesConectarRoute
   '/operacoes/': typeof OperacoesIndexRoute
+  '/operacoes/$id/pagamento': typeof OperacoesIdPagamentoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -99,9 +106,10 @@ export interface FileRoutesByTo {
   '/pagamentos': typeof PagamentosRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/operacoes/$id': typeof OperacoesIdRoute
+  '/operacoes/$id': typeof OperacoesIdRouteWithChildren
   '/operacoes/conectar': typeof OperacoesConectarRoute
   '/operacoes': typeof OperacoesIndexRoute
+  '/operacoes/$id/pagamento': typeof OperacoesIdPagamentoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -113,9 +121,10 @@ export interface FileRoutesById {
   '/pagamentos': typeof PagamentosRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/operacoes/$id': typeof OperacoesIdRoute
+  '/operacoes/$id': typeof OperacoesIdRouteWithChildren
   '/operacoes/conectar': typeof OperacoesConectarRoute
   '/operacoes/': typeof OperacoesIndexRoute
+  '/operacoes/$id/pagamento': typeof OperacoesIdPagamentoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/operacoes/$id'
     | '/operacoes/conectar'
     | '/operacoes/'
+    | '/operacoes/$id/pagamento'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/operacoes/$id'
     | '/operacoes/conectar'
     | '/operacoes'
+    | '/operacoes/$id/pagamento'
   id:
     | '__root__'
     | '/'
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/operacoes/$id'
     | '/operacoes/conectar'
     | '/operacoes/'
+    | '/operacoes/$id/pagamento'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -168,7 +180,7 @@ export interface RootRouteChildren {
   PagamentosRoute: typeof PagamentosRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  OperacoesIdRoute: typeof OperacoesIdRoute
+  OperacoesIdRoute: typeof OperacoesIdRouteWithChildren
   OperacoesConectarRoute: typeof OperacoesConectarRoute
   OperacoesIndexRoute: typeof OperacoesIndexRoute
 }
@@ -252,8 +264,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OperacoesIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/operacoes/$id/pagamento': {
+      id: '/operacoes/$id/pagamento'
+      path: '/pagamento'
+      fullPath: '/operacoes/$id/pagamento'
+      preLoaderRoute: typeof OperacoesIdPagamentoRouteImport
+      parentRoute: typeof OperacoesIdRoute
+    }
   }
 }
+
+interface OperacoesIdRouteChildren {
+  OperacoesIdPagamentoRoute: typeof OperacoesIdPagamentoRoute
+}
+
+const OperacoesIdRouteChildren: OperacoesIdRouteChildren = {
+  OperacoesIdPagamentoRoute: OperacoesIdPagamentoRoute,
+}
+
+const OperacoesIdRouteWithChildren = OperacoesIdRoute._addFileChildren(
+  OperacoesIdRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -264,20 +295,10 @@ const rootRouteChildren: RootRouteChildren = {
   PagamentosRoute: PagamentosRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  OperacoesIdRoute: OperacoesIdRoute,
+  OperacoesIdRoute: OperacoesIdRouteWithChildren,
   OperacoesConectarRoute: OperacoesConectarRoute,
   OperacoesIndexRoute: OperacoesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
