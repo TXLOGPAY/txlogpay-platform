@@ -153,16 +153,7 @@ function OperacaoDetail() {
         await operationsDb.update(id, { status: "SETTLEMENT_IN_PROGRESS" as never });
         qc.invalidateQueries({ queryKey: ["operations", "detail", id] });
 
-        // 2. Cria wallet operacional real (server fn — Friendbot + persistência)
-        try {
-          const w = await createWalletFn({ data: { operationId: id } });
-          console.log({ walletCreated: w?.publicKey });
-        } catch (we) {
-          // Friendbot pode falhar — não bloqueia o settlement
-          console.warn("Wallet creation falhou (ignorado):", we);
-        }
-
-        // 3. Executa settlement on-chain
+        // 2. Executa settlement on-chain (wallet operacional já foi criada na validação da garantia)
         await executeSettlement.mutateAsync({ operationId: id, currency: op.currency });
       } catch (e) {
         console.error("SETTLEMENT FLOW ERROR", e);
