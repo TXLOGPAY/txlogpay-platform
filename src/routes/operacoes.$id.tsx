@@ -435,7 +435,11 @@ type TimelineStage = {
   at?: string | null;
 };
 
-function OperationTimeline({ op, settlement }: { op: { status: string; created_at: string; updated_at: string; activated_at: string | null; payment_submitted_at: string | null }; settlement: Settlement | null }) {
+function OperationTimeline({ op, settlement, siscomexStatus }: {
+  op: { status: string; created_at: string; updated_at: string; activated_at: string | null; payment_submitted_at: string | null };
+  settlement: Settlement | null;
+  siscomexStatus: { key: SiscomexKey; label: string } | null;
+}) {
   const status = op.status;
   const order = [
     "PENDING_PAYMENT", "PAYMENT_UNDER_REVIEW",
@@ -447,15 +451,16 @@ function OperationTimeline({ op, settlement }: { op: { status: string; created_a
   const settledAt = settlement?.created_at ?? null;
   const settledOk = !!settlement?.successful;
 
+  const monitoringDesc = siscomexStatus
+    ? `Status atual: ${siscomexStatus.label}`
+    : "Status atual: aguardando primeiro evento Siscomex";
+
   const stages: TimelineStage[] = [
     { key: "registered", title: "Operação registrada", desc: "Processo operacional criado e vinculado ao Siscomex.", icon: FileText, at: op.created_at },
     { key: "pending", title: "Garantia aguardando depósito", desc: "Aguardando pagamento via PIX, TED ou SWIFT.", icon: Banknote, at: reached(0) ? op.created_at : null },
     { key: "received", title: "Comprovante recebido", desc: "Comprovante enviado pelo importador.", icon: FileCheck2, at: op.payment_submitted_at },
     { key: "validated", title: "Garantia validada", desc: "Compliance confirmou os fundos em custódia.", icon: Shield, at: op.activated_at },
-    { key: "settlement_started", title: "Settlement iniciado", desc: "Liquidação internacional disparada pelo motor de pagamentos.", icon: Radio, at: settledAt ?? (op.activated_at ? op.activated_at : null) },
-    { key: "settlement_confirmed", title: "Liquidação confirmada", desc: "Rede internacional confirmou a liquidação dos fundos.", icon: Landmark, at: settledOk ? settledAt : null },
-    { key: "ledger_confirmed", title: "Ledger confirmado", desc: "Registro imutável da liquidação no ledger de referência.", icon: Activity, at: settlement?.ledger ? settledAt : null },
-    { key: "monitoring", title: "Monitoramento operacional", desc: "Operação em acompanhamento até o evento de liberação.", icon: Truck, at: reached(2) ? op.activated_at : null },
+    { key: "monitoring", title: "Monitoramento operacional", desc: monitoringDesc, icon: Truck, at: reached(2) ? op.activated_at : null },
     { key: "settled", title: "Operação liquidada", desc: "Ciclo financeiro encerrado com sucesso.", icon: PackageCheck, at: status === "COMPLETED" ? op.updated_at : null },
   ];
 
