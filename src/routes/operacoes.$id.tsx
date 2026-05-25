@@ -300,11 +300,13 @@ function OperacaoDetail() {
               </button>
               <button
                 onClick={advanceSiscomex}
-                disabled={siscomexIdx >= SISCOMEX_SEQUENCE.length - 1}
+                disabled={advancing || siscomexIdx >= SISCOMEX_SEQUENCE.length - 1}
                 className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest border border-secondary/40 text-secondary hover:bg-secondary/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                title="Avança o próximo evento Siscomex (simulador)"
+                title="Avança o próximo evento Siscomex (simulador) — persistido em current_operational_status"
               >
-                <PlayCircle className="h-3.5 w-3.5" />
+                {advancing
+                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  : <PlayCircle className="h-3.5 w-3.5" />}
                 Simular evento operacional
               </button>
             </div>
