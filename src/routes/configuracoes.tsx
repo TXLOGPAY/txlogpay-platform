@@ -4,7 +4,7 @@ import { Settings, Bell, Shield, Globe, Key } from "lucide-react";
 
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — TXLOGPAY" }] }),
-  component: Configuracoes,
+  component: Configuracoes, 
 });
 
 function Configuracoes() {
