@@ -51,14 +51,30 @@ export function useSubmitReceipt() {
 }
 
 /**
- * Validação da garantia: marca a operação como ativa (monitoramento).
- * NÃO dispara settlement — isso ocorre apenas quando o evento Siscomex
- * casa com o release_trigger.
+ * Validação da garantia: marca a operação como ativa (monitoramento)
+ * e cria automaticamente a wallet operacional (custódia) — invisível para o UX.
+ * NÃO dispara settlement.
  */
 export function useValidatePayment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => operationsDb.validatePayment(id),
+    mutationFn: async (id: string) => {
+      const op = await operationsDb.validatePayment(id);
+      // Cria wallet operacional logo após validar a garantia.
+      if (!op.operation_wallet) {
+        try {
+          const { createOperationWallet } = await import("@/lib/wallet.functions");
+          const res = await createOperationWallet({ data: { operationId: id } });
+          // eslint-disable-next-line no-console
+          console.log({ operationWalletCreated: res?.publicKey });
+        } catch (e) {
+          // Friendbot/rede pode falhar — não bloqueia validação.
+          // eslint-disable-next-line no-console
+          console.warn("operation_wallet creation falhou (ignorado):", e);
+        }
+      }
+      return op;
+    },
     onSuccess: (op) => {
       qc.invalidateQueries({ queryKey: ["operations"] });
       qc.setQueryData(KEYS.detail(op.id), op);
