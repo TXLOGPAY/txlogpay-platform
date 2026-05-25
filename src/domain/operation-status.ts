@@ -7,24 +7,26 @@ export const OPERATION_STATUS = [
   "OPERATION_MONITORING",
   "PAYMENT_RELEASED",
   "ACTIVE",        // legacy: still treated as monitoring
+  "SETTLEMENT_IN_PROGRESS",
   "COMPLETED",
   "CANCELLED",
 ] as const;
 export type OperationStatus = typeof OPERATION_STATUS[number];
 
 export const STATUS_META: Record<OperationStatus, { label: string; chip: string; color: string }> = {
-  PENDING_PAYMENT:      { label: "Aguardando pagamento",   chip: "chip-warning", color: "var(--warning)" },
-  PAYMENT_UNDER_REVIEW: { label: "Pagamento em análise",   chip: "chip-info",    color: "var(--accent)" },
-  OPERATION_MONITORING: { label: "Operação monitorada",    chip: "chip-info",    color: "var(--secondary)" },
-  PAYMENT_RELEASED:     { label: "Pagamento liberado",     chip: "chip-success", color: "var(--success)" },
-  ACTIVE:               { label: "Operação ativa",         chip: "chip-info",    color: "var(--secondary)" },
-  COMPLETED:            { label: "Concluída",              chip: "chip-success", color: "var(--success)" },
-  CANCELLED:            { label: "Cancelada",              chip: "chip-warning", color: "var(--destructive)" },
+  PENDING_PAYMENT:        { label: "Aguardando pagamento",   chip: "chip-warning", color: "var(--warning)" },
+  PAYMENT_UNDER_REVIEW:   { label: "Pagamento em análise",   chip: "chip-info",    color: "var(--accent)" },
+  OPERATION_MONITORING:   { label: "Operação monitorada",    chip: "chip-info",    color: "var(--secondary)" },
+  PAYMENT_RELEASED:       { label: "Pagamento liberado",     chip: "chip-success", color: "var(--success)" },
+  ACTIVE:                 { label: "Operação ativa",         chip: "chip-info",    color: "var(--secondary)" },
+  SETTLEMENT_IN_PROGRESS: { label: "Liquidação em curso",    chip: "chip-info",    color: "var(--secondary)" },
+  COMPLETED:              { label: "Concluída",              chip: "chip-success", color: "var(--success)" },
+  CANCELLED:              { label: "Cancelada",              chip: "chip-warning", color: "var(--destructive)" },
 };
 
 // Statuses considered "post-payment" (operation already locked in).
 export const ACTIVE_STATUSES: OperationStatus[] = [
-  "OPERATION_MONITORING", "PAYMENT_RELEASED", "ACTIVE", "COMPLETED",
+  "OPERATION_MONITORING", "PAYMENT_RELEASED", "ACTIVE", "SETTLEMENT_IN_PROGRESS", "COMPLETED",
 ];
 
 export const isActive = (s: string) => ACTIVE_STATUSES.includes(s as OperationStatus);
