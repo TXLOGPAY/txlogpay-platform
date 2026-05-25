@@ -251,6 +251,7 @@ export type Database = {
         | "ACTIVE"
         | "COMPLETED"
         | "CANCELLED"
+        | "SETTLEMENT_IN_PROGRESS"
       user_tier: "STANDARD" | "ENTERPRISE" | "VIP" | "ANCHOR_PARTNER"
     }
     CompositeTypes: {
@@ -387,6 +388,7 @@ export const Constants = {
         "ACTIVE",
         "COMPLETED",
         "CANCELLED",
+        "SETTLEMENT_IN_PROGRESS",
       ],
       user_tier: ["STANDARD", "ENTERPRISE", "VIP", "ANCHOR_PARTNER"],
     },
