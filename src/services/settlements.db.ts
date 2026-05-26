@@ -82,6 +82,15 @@ export const settlementsDb = {
       .select("*")
       .single();
     if (error) throw error;
+
+    await supabase
+      .from("operations")
+      .update({
+        settlement_wallet: result.destinationWallet,
+        settlement_status: result.successful ? "CONFIRMED" : "FAILED",
+      })
+      .eq("id", operationId);
+
     return data as unknown as Settlement;
   },
 };
