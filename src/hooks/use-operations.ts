@@ -68,11 +68,9 @@ export function useValidatePayment() {
       if (!op.operation_wallet) {
         try {
           const res = await createOperationWalletFn({ data: { operationId: id } });
-          // eslint-disable-next-line no-console
           console.log({ operationWalletCreated: res?.publicKey });
         } catch (e) {
           // Friendbot/rede pode falhar — não bloqueia validação.
-          // eslint-disable-next-line no-console
           console.warn("operation_wallet creation falhou (ignorado):", e);
         }
       }
