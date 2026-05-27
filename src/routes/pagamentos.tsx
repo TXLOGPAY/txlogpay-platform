@@ -195,9 +195,9 @@ function PaymentBlock({ title, tone, ops, empty, showReceipt }: { title: string;
                 <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
                   {o.exporter_name || "—"} · {o.beneficiary_country || "—"}
                 </div>
-                {showReceipt && o.payment_receipt_name && (
+                {showReceipt && o.payment_submitted_at && (
                   <div className="text-[10px] text-secondary font-mono mt-1 truncate">
-                    📎 {o.payment_receipt_name} · {o.payment_submitted_at ? new Date(o.payment_submitted_at).toLocaleDateString("pt-BR") : ""}
+                    Comprovante recebido em {new Date(o.payment_submitted_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
                   </div>
                 )}
               </div>
