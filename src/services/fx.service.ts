@@ -4,8 +4,8 @@ import { USD_FX_RATES } from "@/lib/formatters";
 
 export interface FxQuote {
   currency: string;
-  rate: number;             // 1 unit of `currency` = `rate` USD
-  reference_date: string;   // ISO timestamp
+  rate: number; // 1 unit of `currency` = `rate` USD
+  reference_date: string; // ISO timestamp
   source: "frankfurter" | "fallback";
 }
 
@@ -16,7 +16,12 @@ export async function getUsdRate(currency: string): Promise<FxQuote> {
   const cur = (currency || "USD").toUpperCase();
   const now = Date.now();
   if (cur === "USD") {
-    return { currency: "USD", rate: 1, reference_date: new Date().toISOString(), source: "fallback" };
+    return {
+      currency: "USD",
+      rate: 1,
+      reference_date: new Date().toISOString(),
+      source: "fallback",
+    };
   }
   const cached = CACHE.get(cur);
   if (cached && now - cached.at < TTL_MS) return cached.quote;

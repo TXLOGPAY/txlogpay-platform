@@ -51,9 +51,7 @@ export function getAssetCode(currency: string): string {
 }
 
 async function fundWithFriendbot(publicKey: string): Promise<void> {
-  const r = await fetch(
-    `https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`,
-  );
+  const r = await fetch(`https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`);
   if (!r.ok && r.status !== 400) {
     // 400 = já existe (ok). Outros códigos = falha real.
     const txt = await r.text().catch(() => "");
@@ -100,13 +98,11 @@ export async function ensureIssuer(currency: string): Promise<{
   const issuer = StellarSdk.Keypair.random();
   await fundWithFriendbot(issuer.publicKey());
 
-  const { error } = await supabaseAdmin
-    .from("platform_assets" as never)
-    .insert({
-      code,
-      issuer_public: issuer.publicKey(),
-      issuer_secret: issuer.secret(),
-    } as never);
+  const { error } = await supabaseAdmin.from("platform_assets" as never).insert({
+    code,
+    issuer_public: issuer.publicKey(),
+    issuer_secret: issuer.secret(),
+  } as never);
 
   if (error) {
     // Race condition possível — re-tenta leitura.
