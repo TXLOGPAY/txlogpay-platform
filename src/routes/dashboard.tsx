@@ -6,7 +6,7 @@ import {
   Shield, Wallet, TrendingUp, History, Plus, Inbox, Loader2, Sparkles, ArrowUpRight, BarChart3, CheckCircle2, Clock,
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { useAllOperations } from "@/hooks/use-operations";
+// import { useAllOperations } from "@/hooks/use-operations";
 import { useAuth } from "@/hooks/use-auth";
 import { formatCurrency } from "@/lib/formatters";
 import {
@@ -21,6 +21,8 @@ export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — TXLOGPAY" }] }),
   component: Dashboard,
 });
+
+<div>DASHBOARD OK</div>
 
 const TRADITIONAL_LC_RATE = 0.025;
 
@@ -62,8 +64,9 @@ function monthlySeries(ops: DBOperation[], rates: FxRates, forceUsd: boolean) {
   return Array.from(buckets.values());
 }
 
+
 function Dashboard() {
-  const { data: ops = [], isLoading, error } = useAllOperations();
+  // const { data: ops = [], isLoading, error } = useAllOperations();
   const { data: fx } = useQuery({
     queryKey: ["fx", "usd-base-rates"],
     queryFn: fetchUsdBaseRates,
