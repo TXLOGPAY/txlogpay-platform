@@ -1,13 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import {
-  createFundedWallet,
-  establishTrustline,
-  getAsset,
-  sendAsset,
-  toStellarAmount,
-} from "@/services/stellar-assets.server";
+// stellar-assets.server importado DINAMICAMENTE dentro do handler — ver
+// wallet.functions.ts. Evita vazar supabaseAdmin para o bundle do browser.
 
 /**
  * Executa a liquidação internacional tokenizada.
@@ -47,6 +42,16 @@ export const executeSettlement = createServerFn({ method: "POST" })
 
     const currency = operation.currency ?? "USD";
     const operationValue = Number(operation.operation_value ?? 0);
+
+    // Import dinâmico — server-only.
+    const {
+      createFundedWallet,
+      establishTrustline,
+      getAsset,
+      sendAsset,
+      toStellarAmount,
+    } = await import("@/services/stellar-assets.server");
+
     const amount = toStellarAmount(operationValue || 1);
 
     // Idempotência — se já existe settlement confirmado, retorna.
