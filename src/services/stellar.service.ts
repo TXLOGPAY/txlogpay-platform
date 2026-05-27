@@ -62,7 +62,7 @@ export async function executeStellarSettlement(
 
   const asset = getOperationalAsset(currency);
   console.log(asset);
-  console.log(asset instanceof Asset);
+  console.log(asset instanceof Asset); 
 
   // Wallet operacional (escrow)
   const source = Keypair.random();
