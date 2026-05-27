@@ -107,7 +107,8 @@ export function useExecuteSettlement() {
 export function useSettlement(operationId: string | undefined) {
   return useQuery<Settlement | null>({
     queryKey: ["settlement", operationId ?? ""],
-    queryFn: () => (operationId ? settlementsDb.getByOperation(operationId) : Promise.resolve(null)),
+    queryFn: () =>
+      operationId ? settlementsDb.getByOperation(operationId) : Promise.resolve(null),
     enabled: !!operationId,
     refetchInterval: (q) => (q.state.data ? false : 4000),
   });
