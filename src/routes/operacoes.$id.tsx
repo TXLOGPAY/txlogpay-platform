@@ -257,9 +257,9 @@ function OperacaoDetail() {
       </motion.div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <Info label="Valor da operação" value={formatCurrency(getProtectedAmount(op), op.currency)} />
-        <Info label="Taxa TXLOGPAY" value={formatCurrency(Number(op.fee_amount), op.currency)} />
-        <Info label="Total pago pelo importador" value={formatCurrency(Number(op.total_amount), op.currency)} highlight />
+        <Info label="Valor da operação" value={formatCurrency(getProtectedAmount(op), op.currency, { decimals: 2 })} />
+        <Info label="Taxa TXLOGPAY" value={formatCurrency(Number(op.fee_amount), op.currency, { decimals: 2 })} />
+        <Info label="Total pago pelo importador" value={formatCurrency(Number(op.total_amount), op.currency, { decimals: 2 })} highlight />
         <Info label="Incoterm" value={op.incoterm || "—"} />
       </div>
       <p className="mt-3 text-[11px] font-mono uppercase tracking-widest text-muted-foreground">
@@ -507,13 +507,13 @@ function FxReferenceCard({ op }: { op: DBOperation }) {
       </div>
       <div className="flex items-center gap-3 text-sm font-mono">
         <span className="text-foreground">
-          {formatCurrency(Number(op.protected_amount), original)}
+          {formatCurrency(Number(op.protected_amount), original, { decimals: 2 })}
         </span>
         <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
         <span className="text-secondary font-bold">
           {usdValue != null
-            ? formatCurrency(usdValue, "USD")
-            : formatCurrency(Number(op.protected_amount), "USD")}
+            ? formatCurrency(usdValue, "USD", { decimals: 2 })
+            : formatCurrency(Number(op.protected_amount), "USD", { decimals: 2 })}
         </span>
       </div>
       {rate != null && (
