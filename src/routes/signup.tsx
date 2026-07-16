@@ -50,7 +50,7 @@ function Signup() {
     const { error: err } = await supabase.auth.signUp({
       email: parsed.data.email,
       password: parsed.data.password,
-      options: { emailRedirectTo: "https://beta.txlogpay.com/dashboard" },
+      options: { emailRedirectTo: `${window.location.origin}/dashboard` },
     });
     setSubmitting(false);
 
@@ -67,7 +67,7 @@ function Signup() {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: "https://beta.txlogpay.com/dashboard",
+      redirectTo: `${window.location.origin}/dashboard`,
     },
   });
 
