@@ -11,7 +11,7 @@ export const authService = {
       email, 
       password,
       options: {
-        emailRedirectTo: "https://beta.txlogpay.com/dashboard",
+        emailRedirectTo: `${window.location.origin}/dashboard`,
       },
     });
   },
@@ -20,7 +20,7 @@ export const authService = {
     return supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: "https://beta.txlogpay.com/dashboard",
+        redirectTo: `${window.location.origin}/dashboard`,
       },
     });
   },
