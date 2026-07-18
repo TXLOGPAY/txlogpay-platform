@@ -2,7 +2,7 @@
 
 Infraestrutura operacional para liberação automática de pagamentos internacionais vinculados a eventos aduaneiros.
 
----
+----
 
 ## Visão Geral
 
@@ -64,7 +64,7 @@ Evento Confirmado
 Pagamento Liberado
 ```
 
----
+----
 
 ## Principais Funcionalidades
 
