@@ -28,8 +28,14 @@ export const executeSettlement = createServerFn({ method: "POST" })
 
     const { data: operation, error: opErr } = await supabase
       .from("operations")
-      .select("*")
+      .select(`
+        operation_wallet,
+        operation_wallet_secret,
+        currency,
+        operation_value
+      `)
       .eq("id", data.operationId)
+      .eq("user_id", userId)
       .single();
 
     if (opErr || !operation) throw new Error("Operation not found");
@@ -57,8 +63,26 @@ export const executeSettlement = createServerFn({ method: "POST" })
     // Idempotência — se já existe settlement confirmado, retorna.
     const { data: existingSettlement } = await supabase
       .from("settlements" as never)
-      .select("*")
+      .select(`
+        id,
+        operation_id,
+        user_id,
+        tx_hash,
+        ledger,
+        amount,
+        asset,
+        asset_code,
+        operation_currency,
+        source_wallet,
+        destination_wallet,
+        confirmation_code,
+        network,
+        status,
+        successful,
+        created_at
+      `)
       .eq("operation_id", data.operationId)
+      .eq("user_id", userId)
       .eq("status", "CONFIRMED")
       .maybeSingle();
 
@@ -116,7 +140,24 @@ export const executeSettlement = createServerFn({ method: "POST" })
     const { data: inserted, error: insErr } = await supabase
       .from("settlements" as never)
       .insert(settlementRow as never)
-      .select("*")
+      .select(`
+        id,
+        operation_id,
+        user_id,
+        tx_hash,
+        ledger,
+        amount,
+        asset,
+        asset_code,
+        operation_currency,
+        source_wallet,
+        destination_wallet,
+        confirmation_code,
+        network,
+        status,
+        successful,
+        created_at
+      `)
       .single();
 
     if (insErr) {
